@@ -246,38 +246,46 @@ def main():
             df,shift_type_dict = read_sheet(fname,sname)
             base_mat = shiftplan_to_adj_mat(df)
 
-            shift_degree = [df[s].sum() for s in shift_type_dict]
-            len([x for x in shift_degree if x < 2])
-            for i,key in enumerate(shift_type_dict):
-                if shift_degree[i] < 2:
-                    shift_type_dict[key] = []
-            
-            df = df.sample(frac=1).reset_index(drop=True)
-            base_mat = shiftplan_to_adj_mat(df)
-            shift_type_dict_copy = shift_type_dict.copy()
-            for i in range(20):
-                sl_mat = make_sl_adj_mat(df,base_mat,shift_type_dict_copy)
-                flow_sl = get_flow_from_adj_mat(sl_mat)
-                w_mat = make_worker_adj_mat(df,base_mat,flow_sl,2)
-                flow = get_flow_from_adj_mat(w_mat)
+            # Find the best flow, that results in the most shifts possible.
 
-                shift_list = get_shift_list(df,flow_sl,flow)
+            best_sl_flow = None
+            best_w_mat = None
+            best_flow = None
+            best_flow_sum_value = 0
 
-                print(flow_sl.flow_value+flow.flow_value)
-                
-                for k in shift_list:
-                    if (shift_list[k]["lead"] is not None) and (shift_list[k] is None or len(shift_list[k]["worker"]) == 0):
-                        shift_type_dict_copy[k] = []
-                        shift_list = None
+            for _ in range(5):
+                df = df.sample(frac=1).reset_index(drop=True)
+                base_mat = shiftplan_to_adj_mat(df)
+                shift_type_dict_copy = shift_type_dict.copy()
+                for _ in range(10):
+                    sl_mat = make_sl_adj_mat(df,base_mat,shift_type_dict_copy)
+                    flow_sl = get_flow_from_adj_mat(sl_mat)
+                    w_mat = make_worker_adj_mat(df,base_mat,flow_sl,2)
+                    flow = get_flow_from_adj_mat(w_mat)
+
+                    shift_list = get_shift_list(df,flow_sl,flow)
+
+                    print(flow_sl.flow_value+flow.flow_value)
+                    
+                    for k in shift_list:
+                        if (shift_list[k]["lead"] is not None) and (shift_list[k] is None or len(shift_list[k]["worker"]) == 0):
+                            shift_type_dict_copy[k] = []
+                            shift_list = None
+                            break
+                    
+                    if shift_list is not None:
                         break
-                
-                if shift_list is not None:
-                    break
 
-            w_mat_2 = make_worker_adj_mat(df,w_mat,flow,max_shift_size-1)
+                if (flow_sl.flow_value+flow.flow_value) > best_flow_sum_value:
+                    best_sl_flow = flow_sl
+                    best_w_mat = w_mat
+                    best_flow = flow
+                    best_flow_sum_value = (flow_sl.flow_value+flow.flow_value)
+
+            w_mat_2 = make_worker_adj_mat(df,best_w_mat,best_flow,max_shift_size-1)
             flow_2 = get_flow_from_adj_mat(w_mat_2)
-            shift_list = get_shift_list(df,flow_sl,flow,flow_2)
-            print(flow_sl.flow_value+flow.flow_value+flow_2.flow_value)
+            shift_list = get_shift_list(df,best_sl_flow,best_flow,flow_2)
+            print(best_sl_flow.flow_value+best_flow.flow_value+flow_2.flow_value)
 
             sl_str = ""
             for k in shift_list:
