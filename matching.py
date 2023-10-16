@@ -23,7 +23,7 @@ def read_sheet(file="Shiftsplan_lux025.xlsx",sheet="ShiftList_KW16"):
             key = d + "_" + s
             data[key] = []
 
-    for row in range(14, dataframe1.max_row):
+    for row in range(13, dataframe1.max_row):
         for i,col in enumerate(dataframe1.iter_cols(2, 24)):
             if i == 0:
                 name = col[row].value
