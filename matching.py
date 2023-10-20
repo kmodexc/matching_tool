@@ -294,9 +294,9 @@ def main():
                 if shift_list[k]["lead"] is None:
                     sl_str += "None\n"
                 else:
-                    sl_str += shift_list[k]["lead"] + "\n"
+                    sl_str += "@" + shift_list[k]["lead"] + " (lead)\n"
                     for m in shift_list[k]["worker"]:
-                        sl_str += m + "\n"
+                        sl_str += "@" + m + "\n"
                 sl_str += "\n"
             window["-OUTBOX-"].update(sl_str)
 
