@@ -258,6 +258,12 @@ def main():
             df, shift_type_dict = read_sheet(fname, sname)
             base_mat = shiftplan_to_adj_mat(df)
 
+            shift_degree = [df[s].sum() for s in shift_type_dict]
+            len([x for x in shift_degree if x < 2])
+            for i,key in enumerate(shift_type_dict):
+                if shift_degree[i] < 2:
+                    shift_type_dict[key] = []
+
             # Find the best flow, that results in the most shifts possible.
 
             best_sl_flow = None
@@ -266,7 +272,7 @@ def main():
             best_flow_sum_value = 0
             best_df = None
 
-            for _ in range(5):
+            for _ in range(50):
                 df = df.sample(frac=1).reset_index(drop=True)
                 base_mat = shiftplan_to_adj_mat(df)
                 shift_type_dict_copy = shift_type_dict.copy()
