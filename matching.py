@@ -64,11 +64,10 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
         for i, col in enumerate(dataframe1.iter_cols(4, 24)):
             key = DAYS[(i - 3) // len(SHIFTS)] + "_" + SHIFTS[(i - 3) % len(SHIFTS)]
             shift_type_id = SHIFT_TYPES[row - 5]
+            if key not in shift_type_dict:
+                shift_type_dict[key] = []
             if col[row].value is not None:
-                if key in shift_type_dict:
-                    shift_type_dict[key].append(shift_type_id)
-                else:
-                    shift_type_dict[key] = [shift_type_id]
+                shift_type_dict[key].append(shift_type_id)
 
     return df, shift_type_dict
 
