@@ -264,6 +264,7 @@ def main():
             best_w_mat = None
             best_flow = None
             best_flow_sum_value = 0
+            best_df = None
 
             for _ in range(5):
                 df = df.sample(frac=1).reset_index(drop=True)
@@ -294,10 +295,11 @@ def main():
                     best_w_mat = w_mat
                     best_flow = flow
                     best_flow_sum_value = (flow_sl.flow_value + flow.flow_value)
+                    best_df = df.copy()
 
-            w_mat_2 = make_worker_adj_mat(df, best_w_mat, best_flow, max_shift_size - 1)
+            w_mat_2 = make_worker_adj_mat(best_df, best_w_mat, best_flow, max_shift_size - 1)
             flow_2 = get_flow_from_adj_mat(w_mat_2)
-            shift_list = get_shift_list(df, best_sl_flow, best_flow, flow_2)
+            shift_list = get_shift_list(best_df, best_sl_flow, best_flow, flow_2)
             print(best_sl_flow.flow_value + best_flow.flow_value + flow_2.flow_value)
 
             sl_str = ""
