@@ -50,7 +50,7 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
             if i == 0:
                 name = col[row].value
             elif name != None and name != "" and col[row].value != None and len(str(col[row].value)) > 0:
-                df.loc[df["name"] == name, "sl_" + SHIFT_TYPES[i - 2]] = True
+                df.loc[df["name"] == name, "sl_" + SHIFT_TYPES[i - 1]] = True
 
     shift_type_dict = {}
     for row in range(5, 12):
@@ -87,7 +87,7 @@ def main():
     layout = [[sg.Column([[sg.Text("Excel file:")], [sg.Text("Sheet name:")]]),
                sg.Column([[sg.InputText(), sg.FileBrowse()], [sg.InputText("ShiftList_KW16")]])],
               [sg.Text("Maximum shift size:"), sg.InputText("3", key="-MAX-SHIFT-SIZE-", size=3), 
-               sg.Checkbox("Use new Algorithm", default=True, key="-USE-NEW-ALGO-")],
+               sg.Checkbox("Higher accuracy but slower new algorithm", default=True, key="-USE-NEW-ALGO-")],
               [sg.Button('Generate Shiftplan'), sg.Button('Generate Beerlist'), sg.Text("Comment:"),
                sg.InputText(key="-COMMENT-", size=25)],
               [sg.Multiline(size=(70, 15), key="-OUTBOX-")]]
@@ -138,23 +138,28 @@ def main():
             if values["-USE-NEW-ALGO-"]:
                 if max_shift_size != 3:
                     sg.popup("the new algorithm is only implemented for max shiftsize of 3")
+                    shift_list = []
                 else:
-                    window["-OUTBOX-"].update("Please wait. The new Algorithm is slower :)")
+                    #no use because it takes time
+                    #window["-OUTBOX-"].update("Please wait. The new Algorithm is slower :)")
                     shift_list = min_cost_matching(df,shift_type_dict)
             else:
                 shift_list = max_flow_matching(df,shift_type_dict,max_shift_size)
 
             sl_str = ""
+            shift_count = 0
             for k in shift_list:
                 day, time = k.split("_")
                 sl_str += day_texts[day] + " " + time_texts[time] + "\n"
                 if shift_list[k]["lead"] is None:
                     sl_str += "None\n"
                 else:
+                    shift_count += 1
                     sl_str += "@" + shift_list[k]["lead"] + " (lead)\n"
                     for m in shift_list[k]["worker"]:
                         sl_str += "@" + m + "\n"
                 sl_str += "\n"
+            print("Number of Shifts:", shift_count)
             window["-OUTBOX-"].update(sl_str)
 
     window.close()
