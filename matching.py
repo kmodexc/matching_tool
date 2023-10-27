@@ -4,6 +4,10 @@ from general import DAYS,SHIFTS,SHIFT_TYPES
 from maxflow import max_flow_matching
 from mincost import min_cost_matching
 
+START_COL_NAMES = 3
+START_ROW_AVAIL = 13
+START_ROW_SHIFT_TYPES = 5
+
 def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
     dataframe = openpyxl.load_workbook(file)
     dataframe1 = dataframe[sheet]
@@ -17,53 +21,61 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
             key = d + "_" + s
             data[key] = []
 
-    for row in range(13, dataframe1.max_row):
-        for i, col in enumerate(dataframe1.iter_cols(3, 25)):
-            if i == 0:
+    for st in SHIFT_TYPES:
+        data["sl_" + st] = []
+
+    START_COL_AVAIL_REL = 2
+    START_COL_AVAIL = START_COL_NAMES+START_COL_AVAIL_REL
+    START_COL_SHIFTLEADS_REL = START_COL_AVAIL_REL+(len(SHIFTS)*len(DAYS))
+    START_COL_SHIFTLEADS = START_COL_NAMES+START_COL_SHIFTLEADS_REL
+    LAST_COL = START_COL_SHIFTLEADS+len(SHIFT_TYPES) - 1
+    LAST_ROW_SHIFT_TYPES = START_ROW_SHIFT_TYPES + len(SHIFT_TYPES) - 1
+
+    shift_type_dict = {}
+
+    for row in range(START_ROW_SHIFT_TYPES, dataframe1.max_row):
+        for i, col in enumerate(dataframe1.iter_cols(START_COL_NAMES, LAST_COL)):
+            if i == 0 and row >= START_ROW_AVAIL:
                 name = col[row].value
                 if name != None:
                     data['name'].append(name)
-                #     data['shiftlead'].append(col[row].font is not None and col[row].font.color is not None \
-                #         and str(col[row].font.color.rgb) != "Values must be of type <class 'str'>" \
-                #         and col[row].font.color.rgb != "FF000000")
-            elif i == 1:
+            elif i == 1 and row >= START_ROW_AVAIL:
                 if name != None:
                     n_shifts = col[row].value
                     data['beer'].append(1 if n_shifts is None else 0)
                     if n_shifts is None:
                         n_shifts = 0
                     data['n_shifts'].append(int(n_shifts))
-            elif name != None:
-                key = DAYS[(i - 2) // len(SHIFTS)] + "_" + SHIFTS[(i - 2) % len(SHIFTS)]
+            elif name != None and i < START_COL_SHIFTLEADS_REL and row >= START_ROW_AVAIL:
+                key = DAYS[(i - START_COL_AVAIL_REL) // len(SHIFTS)] + "_" + SHIFTS[(i - START_COL_AVAIL_REL) % len(SHIFTS)]
                 if col[row].value != None:
                     data[key].append(1)
                 else:
                     data[key].append(0)
-
-    for st in SHIFT_TYPES:
-        data["sl_" + st] = len(data["name"]) * [False]
+            elif name != None and row >= START_ROW_AVAIL:
+                key = "sl_" + SHIFT_TYPES[i - START_COL_SHIFTLEADS_REL]
+                if col[row].value != None and len(str(col[row].value)) > 0:
+                    data[key].append(True)
+                else:
+                    data[key].append(False)
+            elif row < START_ROW_AVAIL and row < LAST_ROW_SHIFT_TYPES and i >= START_COL_AVAIL_REL and i < START_COL_SHIFTLEADS_REL:
+                key = DAYS[(i - START_COL_AVAIL_REL) // len(SHIFTS)] + "_" + SHIFTS[(i - START_COL_AVAIL_REL) % len(SHIFTS)]
+                shift_type_id = SHIFT_TYPES[row - START_ROW_SHIFT_TYPES]
+                if key not in shift_type_dict:
+                    shift_type_dict[key] = []
+                if col[row].value is not None:
+                    shift_type_dict[key].append(shift_type_id)
 
     df = pd.DataFrame(data)
 
-    for row in range(1, dataframe["ShiftLeads"].max_row):
-        for i, col in enumerate(dataframe["ShiftLeads"].iter_cols(1, 8)):
-            if i == 0:
-                name = col[row].value
-            elif name != None and name != "" and col[row].value != None and len(str(col[row].value)) > 0:
-                df.loc[df["name"] == name, "sl_" + SHIFT_TYPES[i - 1]] = True
-
-    shift_type_dict = {}
-    for row in range(5, 12):
-        for i, col in enumerate(dataframe1.iter_cols(4, 24)):
-            key = DAYS[(i - 3) // len(SHIFTS)] + "_" + SHIFTS[(i - 3) % len(SHIFTS)]
-            shift_type_id = SHIFT_TYPES[row - 5]
-            if key not in shift_type_dict:
-                shift_type_dict[key] = []
-            if col[row].value is not None:
-                shift_type_dict[key].append(shift_type_id)
+    # for row in range(1, dataframe["ShiftLeads"].max_row):
+    #     for i, col in enumerate(dataframe["ShiftLeads"].iter_cols(1, 8)):
+    #         if i == 0:
+    #             name = col[row].value
+    #         elif name != None and name != "" and col[row].value != None and len(str(col[row].value)) > 0:
+    #             df.loc[df["name"] == name, "sl_" + SHIFT_TYPES[i - 1]] = True
 
     return df, shift_type_dict
-
 
 def get_beer_list(df):
     obj = {}
