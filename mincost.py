@@ -205,18 +205,24 @@ class MatchingGraph:
 def min_cost_matching(df,shift_type_dict):
     graph = MatchingGraph(df,shift_type_dict)
     flow = graph.get_flow()
+    retval = None
     if flow is None:
         avai_shifts = [get_shift_index(s) for s in shift_type_dict if len(shift_type_dict[s]) > 0]
-        for i in range(2):
+        for i in range(3):
             retval = graph.get_best_flow_by_remove_shift(avai_shifts,i)
             if retval is not None:
                 break
 
     graph_copy = graph.copy()
-    for shift in retval[0]:
-        graph_copy.disable_shift(get_shift_index(shift))
-    flow = graph_copy.get_flow()
 
+    if retval is not None:
+        for shift in retval[0]:
+            graph_copy.disable_shift(get_shift_index(shift))
+        flow = graph_copy.get_flow()
+
+    if flow is None:
+        return None
+    
     shift_list = graph_copy.get_shift_list(flow)
 
     return shift_list

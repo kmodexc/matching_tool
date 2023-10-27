@@ -18,7 +18,7 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
             data[key] = []
 
     for row in range(13, dataframe1.max_row):
-        for i, col in enumerate(dataframe1.iter_cols(2, 24)):
+        for i, col in enumerate(dataframe1.iter_cols(3, 25)):
             if i == 0:
                 name = col[row].value
                 if name != None:
@@ -90,7 +90,7 @@ def main():
                sg.Checkbox("Higher accuracy but slower new algorithm", default=True, key="-USE-NEW-ALGO-")],
               [sg.Button('Generate Shiftplan'), sg.Button('Generate Beerlist'), sg.Text("Comment:"),
                sg.InputText(key="-COMMENT-", size=25)],
-              [sg.Multiline(size=(70, 15), key="-OUTBOX-")]]
+              [sg.Multiline("Hi ツ", size=(70, 15), key="-OUTBOX-")]]
 
     try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
@@ -137,7 +137,7 @@ def main():
 
             if values["-USE-NEW-ALGO-"]:
                 if max_shift_size != 3:
-                    sg.popup("the new algorithm is only implemented for max shiftsize of 3")
+                    sg.popup("the new algorithm is only implemented for max shiftsize of 3. use the old algo or set shiftsize to 3.")
                     shift_list = []
                 else:
                     #no use because it takes time
@@ -145,6 +145,10 @@ def main():
                     shift_list = min_cost_matching(df,shift_type_dict)
             else:
                 shift_list = max_flow_matching(df,shift_type_dict,max_shift_size)
+
+            if shift_list is None:
+                window["-OUTBOX-"].update("Algorithm didnt find a shift plan ¯\\_(ツ)_/¯")
+                continue
 
             sl_str = ""
             shift_count = 0
