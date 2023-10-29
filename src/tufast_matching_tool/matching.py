@@ -1,8 +1,8 @@
 import pandas as pd
 import openpyxl
-from general import DAYS,SHIFTS,SHIFT_TYPES
-from maxflow import max_flow_matching
-from mincost import min_cost_matching
+from .general import DAYS,SHIFTS,SHIFT_TYPES
+from .maxflow import max_flow_matching
+from .mincost import min_cost_matching
 
 START_COL_NAMES = 3
 START_ROW_AVAIL = 13
@@ -164,6 +164,7 @@ def main():
 
             sl_str = ""
             shift_count = 0
+            worker_count = 0
             for k in shift_list:
                 day, time = k.split("_")
                 sl_str += day_texts[day] + " " + time_texts[time] + "\n"
@@ -171,11 +172,13 @@ def main():
                     sl_str += "None\n"
                 else:
                     shift_count += 1
+                    worker_count += len(shift_list[k]["worker"])
                     sl_str += "@" + shift_list[k]["lead"] + " (lead)\n"
                     for m in shift_list[k]["worker"]:
                         sl_str += "@" + m + "\n"
                 sl_str += "\n"
             print("Number of Shifts:", shift_count)
+            print("Number of Workers:", worker_count)
             window["-OUTBOX-"].update(sl_str)
 
     window.close()

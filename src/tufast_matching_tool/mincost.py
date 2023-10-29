@@ -1,7 +1,7 @@
 import numpy as np
 from functools import reduce
 import networkx as nx
-from general import DAYS, SHIFTS, get_shift_index
+from .general import DAYS, SHIFTS, get_shift_index
 
 class MatchingGraph:
 
@@ -21,6 +21,7 @@ class MatchingGraph:
         for i,key in enumerate(shift_type_dict):
             if shift_degree[i] < 2:
                 shift_type_dict[key] = []
+                print("remove because low degree",key)
 
         node_lengths = [1,
                         df.shape[0],
@@ -30,7 +31,6 @@ class MatchingGraph:
                         (len(SHIFTS) * len(DAYS)),
                         1]
         node_offsets = [reduce(lambda x,y: x+y, node_lengths[:i]) for i in range(1,len(node_lengths))]
-        print(node_offsets)
         n_nodes = reduce(lambda x,y: x+y, node_lengths)
         graph_matrix = np.zeros((n_nodes, n_nodes), dtype="int64")
         graph_matrix[0, node_offsets[0]:node_offsets[1]] = df["n_shifts"].to_numpy()
@@ -40,6 +40,9 @@ class MatchingGraph:
         stretch_factor = len(SHIFTS)*len(DAYS)
 
         for s in shift_type_dict:
+            if shift_type_dict[s] == []:
+                continue
+
             df_sl = None
             for st in shift_type_dict[s]:
                 if df_sl is None:
@@ -50,9 +53,17 @@ class MatchingGraph:
                 df_sl = np.array(df.shape[0] * [False])
             keysplit = s.split('_')
             column_index = DAYS.index(keysplit[0]) * 3 + SHIFTS.index(keysplit[1])
+            shiftlead_vector = np.zeros(df.shape[0]*len(SHIFTS)*len(DAYS))
             shiftlead_vector[column_index::stretch_factor] = df_sl
             graph_matrix[node_offsets[1]:node_offsets[2],node_offsets[2]+column_index] = shiftlead_vector
 
+            # eliminate more shifts
+            is_a_shiftlead_availible_vector = df[s].to_numpy() & df_sl
+            is_a_shiftlead_availible = is_a_shiftlead_availible_vector.sum()
+            if is_a_shiftlead_availible == 0:
+                shift_type_dict[s] = []
+                print("remove because no shiftlead",key)
+        
         for index, row in df.iterrows():
             avai = row.to_numpy()[3:3+(len(SHIFTS)*len(DAYS))]
             start_col = node_offsets[1]+(index*len(SHIFTS)*len(DAYS))
@@ -61,7 +72,6 @@ class MatchingGraph:
             #graph_matrix[start_col:end_col, node_offsets[2]:node_offsets[3]] = np.identity(len(SHIFTS)*len(DAYS))
             graph_matrix[start_col:end_col, node_offsets[3]:node_offsets[4]] = np.identity(len(SHIFTS)*len(DAYS))
             graph_matrix[start_col:end_col, node_offsets[4]:node_offsets[5]] = np.identity(len(SHIFTS)*len(DAYS))
-
 
         graph_matrix[node_offsets[4]:node_offsets[5], 0] = 1
         graph_matrix[0,node_offsets[5]] = 1000
@@ -97,7 +107,6 @@ class MatchingGraph:
             column_index = DAYS.index(keysplit[0]) * 3 + SHIFTS.index(keysplit[1])
             if len(shift_type_dict[s]) == 0:
                 __disable_shift(column_index)
-                print("disabled shift",s)
 
         graph = nx.from_numpy_array(graph_matrix, create_using=nx.DiGraph())
 
@@ -208,7 +217,7 @@ def min_cost_matching(df,shift_type_dict):
     retval = None
     if flow is None:
         avai_shifts = [get_shift_index(s) for s in shift_type_dict if len(shift_type_dict[s]) > 0]
-        for i in range(3):
+        for i in range(2):
             retval = graph.get_best_flow_by_remove_shift(avai_shifts,i)
             if retval is not None:
                 break
