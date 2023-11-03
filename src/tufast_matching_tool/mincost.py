@@ -62,7 +62,7 @@ class MatchingGraph:
             is_a_shiftlead_availible = is_a_shiftlead_availible_vector.sum()
             if is_a_shiftlead_availible == 0:
                 shift_type_dict[s] = []
-                print("remove because no shiftlead",key)
+                print("remove because no shiftlead",s)
         
         for index, row in df.iterrows():
             avai = row.to_numpy()[3:3+(len(SHIFTS)*len(DAYS))]
