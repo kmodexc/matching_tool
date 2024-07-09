@@ -1,12 +1,15 @@
 import pandas as pd
 import openpyxl
-from .general import DAYS,SHIFTS,SHIFT_TYPES
-from .maxflow import max_flow_matching
-from .mincost import min_cost_matching
+from package.general import DAYS, SHIFTS, SHIFT_TYPES
+from package.maxflow import max_flow_matching
+from package.mincost import min_cost_matching
 
 START_COL_NAMES = 3
 START_ROW_AVAIL = 13
 START_ROW_SHIFT_TYPES = 5
+START_ROW_MECA = 23
+LAST_ROW_MECA = 59
+
 
 def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
     dataframe = openpyxl.load_workbook(file)
@@ -39,6 +42,10 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
                 name = col[row].value
                 if name != None:
                     data['name'].append(name)
+                    if START_ROW_MECA <= row <= LAST_ROW_MECA:
+                        data['team'].append('meca')
+                    else:
+                        data['team'].append('other')
             elif i == 1 and row >= START_ROW_AVAIL:
                 if name != None:
                     n_shifts = col[row].value
@@ -85,6 +92,42 @@ def get_beer_list(df):
         obj[n] = df[df["name"] == n]["beer"]
     return obj
 
+def extract_names_from_shift_list(shift_list):
+    names = set()
+    for key in shift_list:
+        if shift_list[key]['lead']:
+            names.add(shift_list[key]['lead'])
+        for worker in shift_list[key]['worker']:
+            names.add(worker)
+    return list(names)
+ 
+def get_not_assigned_names(df, assigned_names):
+    not_assigned = df[(df['n_shifts'] >= 1) & (~df['name'].isin(assigned_names))]
+    assigned_meca = df[(df['team'] == 'meca') & (df['name'].isin(assigned_names))]
+
+    not_assigned = pd.concat([not_assigned, assigned_meca])
+    
+    meca_not_assigned = not_assigned[not_assigned['team'] == 'meca']
+    other_not_assigned = not_assigned[not_assigned['team'] != 'meca']
+    
+    return meca_not_assigned['name'].tolist() + other_not_assigned['name'].tolist()
+
+
+
+def switch_names(df, assigned_names, not_assigned_names):
+    num_pairs_to_swap = min(len(assigned_names), len(not_assigned_names))
+
+    name_to_index = {name: idx for idx, name in enumerate(df['name'])}
+
+    assigned_indices = [name_to_index[name] for name in assigned_names]
+    not_assigned_indices = [name_to_index[name] for name in not_assigned_names]
+
+    temp = df.loc[assigned_indices].copy()
+    df.loc[assigned_indices] = df.loc[not_assigned_indices].values
+    df.loc[not_assigned_indices] = temp.values
+
+    return df
+
 
 def main():
     import PySimpleGUI as sg
@@ -97,7 +140,9 @@ def main():
     time_texts = {"9": "9:00 - 13:00", "14": "14:00 - 18:00", "18": "18:00 - 22:00"}
 
     layout = [[sg.Column([[sg.Text("Excel file:")], [sg.Text("Sheet name:")]]),
-               sg.Column([[sg.InputText(), sg.FileBrowse()], [sg.InputText("ShiftList_KW16")]])],
+                sg.Column([[sg.InputText(key="-CURRENT-FILE-"), sg.FileBrowse()], [sg.InputText("ShiftList_KW16", key="-CURRENT-SHEET-")]])],
+              [sg.Column([[sg.Text("Previous Excel file:")], [sg.Text("Sheet name:")]]),
+                sg.Column([[sg.InputText(key="-PREVIOUS-FILE-"), sg.FileBrowse()], [sg.InputText("ShiftList_KW15", key="-PREVIOUS-SHEET-")]])],
               [sg.Text("Maximum shift size:"), sg.InputText("3", key="-MAX-SHIFT-SIZE-", size=3), 
                sg.Checkbox("Higher accuracy but slower new algorithm", default=True, key="-USE-NEW-ALGO-")],
               [sg.Button('Generate Shiftplan'), sg.Button('Generate Beerlist'), sg.Text("Comment:"),
@@ -131,21 +176,41 @@ def main():
                     "%d.%m.%Y") + ' || ' + comment + ' ||\n'
             window["-OUTBOX-"].update(bstr)
 
+
         if event == 'Generate Shiftplan':
-            fname = values[0]
-            sname = values[1]
-            if len(sname) == 0 or not os.path.isfile(fname):
-                sg.popup("fill valid shiftplan file")
+            previous_fname = values[2]
+            previous_sname = values[3]
+            current_fname = values[0]
+            current_sname = values[1]
+            if len(current_sname) == 0 or not os.path.isfile(current_fname):
+                sg.popup("Fill in valid current shift plan file")
                 continue
-            if len(sname) == 0:
-                sg.popup("fill in sheet name")
+
+            if len(previous_sname) == 0 or not os.path.isfile(previous_fname):
+                sg.popup("Fill in valid previous shift plan file")
+                continue
+
+            if len(current_sname) == 0:
+                sg.popup("Fill in current sheet name")
+                continue
+
+            if len(previous_sname) == 0:
+                sg.popup("Fill in previous sheet name")
                 continue
             if len(values["-MAX-SHIFT-SIZE-"]) < 0 or not values["-MAX-SHIFT-SIZE-"].isnumeric():
                 sg.popup("fill in maximum shift size")
                 continue
             max_shift_size = int(values["-MAX-SHIFT-SIZE-"])
-            print("Generate Matching for File:", fname, " Worksheet: ", sname)
-            df, shift_type_dict = read_sheet(fname, sname)
+            print("Generate Matching for File:", current_fname, " Worksheet: ", current_sname)
+            
+            prev_df, prev_shift_type_dict = read_sheet(previous_fname, previous_sname)
+            prev_shift_list = max_flow_matching(prev_df, prev_shift_type_dict, max_shift_size)  
+            assigned_names_prev = extract_names_from_shift_list(prev_shift_list)
+            not_assigned_names_prev = get_not_assigned_names(prev_df, assigned_names_prev)
+
+            curr_df, curr_shift_type_dict = read_sheet(current_fname, current_sname)
+
+            curr_df = switch_names(curr_df, assigned_names_prev, not_assigned_names_prev)
 
             if values["-USE-NEW-ALGO-"]:
                 if max_shift_size != 3:
@@ -154,14 +219,16 @@ def main():
                 else:
                     #no use because it takes time
                     #window["-OUTBOX-"].update("Please wait. The new Algorithm is slower :)")
-                    shift_list = min_cost_matching(df,shift_type_dict)
+                    shift_list = min_cost_matching(curr_df, curr_shift_type_dict)
             else:
-                shift_list = max_flow_matching(df,shift_type_dict,max_shift_size)
+                shift_list = max_flow_matching(curr_df, curr_shift_type_dict,max_shift_size)
 
             if shift_list is None:
                 window["-OUTBOX-"].update("Algorithm didnt find a shift plan ¯\\_(ツ)_/¯")
                 continue
 
+                
+        
             sl_str = ""
             shift_count = 0
             worker_count = 0
