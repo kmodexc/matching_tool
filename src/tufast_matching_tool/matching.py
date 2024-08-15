@@ -14,9 +14,6 @@ START_ROW_SHIFT_TYPES = 5
 START_ROW_MECA = 23
 LAST_ROW_MECA = 59
 
-day_texts = {"mon": "Monday", "tue": "Tuesday", "wed": "Wednesday", "thr": "Thursday", "fri": "Friday",
-                 "sat": "Saturday", "sun": "Sunday"}
-time_texts = {"9": "9:00 - 13:00", "14": "14:00 - 18:00", "18": "18:00 - 22:00"}
 
 
 
