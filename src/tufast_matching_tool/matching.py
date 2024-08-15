@@ -1,14 +1,23 @@
+import sys
+import os
 import pandas as pd
 import openpyxl
-from package.general import DAYS, SHIFTS, SHIFT_TYPES
-from package.maxflow import max_flow_matching
-from package.mincost import min_cost_matching
+from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QPushButton, QLineEdit, QLabel, QCheckBox, QTextEdit, QFormLayout)
+from PySide6.QtCore import Qt
+from general import DAYS, SHIFTS, SHIFT_TYPES
+from maxflow import max_flow_matching
+from mincost import min_cost_matching
 
 START_COL_NAMES = 3
 START_ROW_AVAIL = 13
 START_ROW_SHIFT_TYPES = 5
 START_ROW_MECA = 23
 LAST_ROW_MECA = 59
+
+day_texts = {"mon": "Monday", "tue": "Tuesday", "wed": "Wednesday", "thr": "Thursday", "fri": "Friday",
+                 "sat": "Saturday", "sun": "Sunday"}
+time_texts = {"9": "9:00 - 13:00", "14": "14:00 - 18:00", "18": "18:00 - 22:00"}
+
 
 
 def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
@@ -17,7 +26,7 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
     name = None
     n_shifts = None
 
-    data = {'name': [], 'n_shifts': [], 'beer': []}
+    data = {'name': [], 'n_shifts': [], 'beer': [], 'team': []}
 
     for d in DAYS:
         for s in SHIFTS:
@@ -114,142 +123,199 @@ def get_not_assigned_names(df, assigned_names):
 
 
 
+
 def switch_names(df, assigned_names, not_assigned_names):
-    num_pairs_to_swap = min(len(assigned_names), len(not_assigned_names))
+    shift_leader_cols = [col for col in df.columns if col.startswith('sl_')]
+    shift_leaders = set()
+    
+    for col in shift_leader_cols:
+        leaders = df[df[col] == True]['name']
+        shift_leaders.update(leaders)
+    
+    filtered_assigned_names = [name for name in assigned_names if name not in shift_leaders]
+    filtered_not_assigned_names = [name for name in not_assigned_names if name not in shift_leaders]
+
+    
+    num_pairs_to_swap = min(len(filtered_assigned_names), len(filtered_not_assigned_names))
 
     name_to_index = {name: idx for idx, name in enumerate(df['name'])}
 
-    assigned_indices = [name_to_index[name] for name in assigned_names]
-    not_assigned_indices = [name_to_index[name] for name in not_assigned_names]
+    assigned_indices = [name_to_index[name] for name in filtered_assigned_names[:num_pairs_to_swap]]
+    not_assigned_indices = [name_to_index[name] for name in filtered_not_assigned_names[:num_pairs_to_swap]]
 
-    temp = df.loc[assigned_indices].copy()
-    df.loc[assigned_indices] = df.loc[not_assigned_indices].values
-    df.loc[not_assigned_indices] = temp.values
+    assigned_rows = df.loc[assigned_indices].copy()
+    not_assigned_rows = df.loc[not_assigned_indices].copy()
+
+    df.loc[assigned_indices, :] = not_assigned_rows.values
+    df.loc[not_assigned_indices, :] = assigned_rows.values
 
     return df
 
 
-def main():
-    import PySimpleGUI as sg
-    from datetime import date
-    import os
-    import sys
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("TUfast Matching Tool")
+        self.setGeometry(100, 100, 800, 600)
+        self.initUI()
 
-    day_texts = {"mon": "Monday", "tue": "Tuesday", "wed": "Wednesday", "thr": "Thursday", "fri": "Friday",
-                 "sat": "Saturday", "sun": "Sunday"}
-    time_texts = {"9": "9:00 - 13:00", "14": "14:00 - 18:00", "18": "18:00 - 22:00"}
+    def initUI(self):
+        layout = QFormLayout()
+        
+        self.current_file_input = QLineEdit()
+        self.current_sheet_input = QLineEdit("ShiftList_KW16")
+        self.previous_file_input = QLineEdit()
+        self.previous_sheet_input = QLineEdit("ShiftList_KW15")
+        self.max_shift_size_input = QLineEdit("3")
+        self.use_new_algo_checkbox = QCheckBox("Higher accuracy but slower new algorithm")
+        self.comment_input = QLineEdit()
+        self.output_text = QTextEdit()
 
-    layout = [[sg.Column([[sg.Text("Excel file:")], [sg.Text("Sheet name:")]]),
-                sg.Column([[sg.InputText(key="-CURRENT-FILE-"), sg.FileBrowse()], [sg.InputText("ShiftList_KW16", key="-CURRENT-SHEET-")]])],
-              [sg.Column([[sg.Text("Previous Excel file:")], [sg.Text("Sheet name:")]]),
-                sg.Column([[sg.InputText(key="-PREVIOUS-FILE-"), sg.FileBrowse()], [sg.InputText("ShiftList_KW15", key="-PREVIOUS-SHEET-")]])],
-              [sg.Text("Maximum shift size:"), sg.InputText("3", key="-MAX-SHIFT-SIZE-", size=3), 
-               sg.Checkbox("Higher accuracy but slower new algorithm", default=True, key="-USE-NEW-ALGO-")],
-              [sg.Button('Generate Shiftplan'), sg.Button('Generate Beerlist'), sg.Text("Comment:"),
-               sg.InputText(key="-COMMENT-", size=25)],
-              [sg.Multiline("Hi ツ", size=(70, 15), key="-OUTBOX-")]]
+        self.current_file_button = QPushButton("Browse")
+        self.previous_file_button = QPushButton("Browse")
+        self.generate_shiftplan_button = QPushButton("Generate Shiftplan")
+        self.generate_beerlist_button = QPushButton("Generate Beerlist")
 
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+        layout.addRow(QLabel("Excel file:"), self.current_file_input)
+        layout.addRow(QLabel("Sheet name:"), self.current_sheet_input)
+        layout.addRow(self.current_file_button)
 
-    icon_fqp = os.path.join(base_path, "tufast_img.ico")
+        layout.addRow(QLabel("Previous Excel file:"), self.previous_file_input)
+        layout.addRow(QLabel("Sheet name:"), self.previous_sheet_input)
+        layout.addRow(self.previous_file_button)
 
-    window = sg.Window('TUfast Matching Tool', layout, icon=icon_fqp)
+        layout.addRow(QLabel("Maximum shift size:"), self.max_shift_size_input)
+        layout.addRow(self.use_new_algo_checkbox)
+        layout.addRow(QLabel("Comment:"), self.comment_input)
 
-    while True:
-        event, values = window.read()
-        if event == sg.WIN_CLOSED or event == 'Exit':
-            break
+        layout.addRow(self.generate_shiftplan_button, self.generate_beerlist_button)
+        layout.addRow(QLabel("Output:"), self.output_text)
 
-        if event == "Generate Beerlist":
-            fname = values[0]
-            sname = values[1]
-            comment = values["-COMMENT-"]
-            df, shift_type_dict = read_sheet(fname, sname)
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+        self.current_file_button.clicked.connect(self.browse_current_file)
+        self.previous_file_button.clicked.connect(self.browse_previous_file)
+        self.generate_shiftplan_button.clicked.connect(self.generate_shiftplan)
+        self.generate_beerlist_button.clicked.connect(self.generate_beerlist)
+
+    def browse_current_file(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Excel Files (*.xlsx)")
+        if file_name:
+            self.current_file_input.setText(file_name)
+
+    def browse_previous_file(self):
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open File", "", "Excel Files (*.xlsx)")
+        if file_name:
+            self.previous_file_input.setText(file_name)
+
+    def generate_beerlist(self):
+        try:
+            fname = self.current_file_input.text()
+            sname = self.current_sheet_input.text()
+            df, _ = read_sheet(fname, sname)
             beerlist = get_beer_list(df)
-            bstr = ""
-            for b in beerlist:
-                bstr += "|| " + b + """ || Did not fill out shift plan || {X} || """ + date.today().strftime(
-                    "%d.%m.%Y") + ' || ' + comment + ' ||\n'
-            window["-OUTBOX-"].update(bstr)
+            bstr = "\n".join(beerlist.keys())  
+            self.output_text.setPlainText(bstr)
+        except Exception as e:
+            self.output_text.setPlainText(f"An error occurred: {e}")
 
+        
+    def generate_shiftplan(self):
+        try:
+            # Récupérer les entrées utilisateur
+            previous_fname = self.previous_file_input.text().strip()
+            previous_sname = self.previous_sheet_input.text().strip()
+            current_fname = self.current_file_input.text().strip()
+            current_sname = self.current_sheet_input.text().strip()
 
-        if event == 'Generate Shiftplan':
-            previous_fname = values[2]
-            previous_sname = values[3]
-            current_fname = values[0]
-            current_sname = values[1]
-            if len(current_sname) == 0 or not os.path.isfile(current_fname):
-                sg.popup("Fill in valid current shift plan file")
-                continue
+            # Validation des entrées
+            if not current_sname or not os.path.isfile(current_fname):
+                self.output_text.setPlainText("fill valid shiftplan file.")
+                return
 
-            if len(previous_sname) == 0 or not os.path.isfile(previous_fname):
-                sg.popup("Fill in valid previous shift plan file")
-                continue
+            if not previous_sname or not os.path.isfile(previous_fname):
+                self.output_text.setPlainText("fill valid shiftplan file.")
+                return
 
-            if len(current_sname) == 0:
-                sg.popup("Fill in current sheet name")
-                continue
+            if not current_sname:
+                self.output_text.setPlainText("fill in sheet name")
+                return
 
-            if len(previous_sname) == 0:
-                sg.popup("Fill in previous sheet name")
-                continue
-            if len(values["-MAX-SHIFT-SIZE-"]) < 0 or not values["-MAX-SHIFT-SIZE-"].isnumeric():
-                sg.popup("fill in maximum shift size")
-                continue
-            max_shift_size = int(values["-MAX-SHIFT-SIZE-"])
-            print("Generate Matching for File:", current_fname, " Worksheet: ", current_sname)
-            
+            if not previous_sname:
+                self.output_text.setPlainText("fill in sheet name")
+                return
+
+            max_shift_size_str = self.max_shift_size_input.text().strip()
+            if not max_shift_size_str or not max_shift_size_str.isnumeric():
+                self.output_text.setPlainText("fill in maximum shift size")
+                return
+
+            max_shift_size = int(max_shift_size_str)
+
+            # Lecture des feuilles
             prev_df, prev_shift_type_dict = read_sheet(previous_fname, previous_sname)
-            prev_shift_list = max_flow_matching(prev_df, prev_shift_type_dict, max_shift_size)  
+            prev_shift_list = max_flow_matching(prev_df, prev_shift_type_dict, max_shift_size)
             assigned_names_prev = extract_names_from_shift_list(prev_shift_list)
             not_assigned_names_prev = get_not_assigned_names(prev_df, assigned_names_prev)
 
             curr_df, curr_shift_type_dict = read_sheet(current_fname, current_sname)
-
             curr_df = switch_names(curr_df, assigned_names_prev, not_assigned_names_prev)
 
-            if values["-USE-NEW-ALGO-"]:
+            if self.use_new_algo_checkbox.isChecked():
                 if max_shift_size != 3:
-                    sg.popup("the new algorithm is only implemented for max shiftsize of 3. use the old algo or set shiftsize to 3.")
+                    self.output_text.setPlainText("the new algorithm is only implemented for max shiftsize of 3. use the old algo or set shiftsize to 3.")
                     shift_list = []
                 else:
-                    #no use because it takes time
-                    #window["-OUTBOX-"].update("Please wait. The new Algorithm is slower :)")
                     shift_list = min_cost_matching(curr_df, curr_shift_type_dict)
             else:
-                shift_list = max_flow_matching(curr_df, curr_shift_type_dict,max_shift_size)
+                shift_list = max_flow_matching(curr_df, curr_shift_type_dict, max_shift_size)
 
             if shift_list is None:
-                window["-OUTBOX-"].update("Algorithm didnt find a shift plan ¯\\_(ツ)_/¯")
-                continue
+                self.output_text.setPlainText("Algorithm didnt find a shift plan ¯\\_(ツ)_/¯")
+                return
 
-                
-        
+            # Initialisation des variables pour le formatage
             sl_str = ""
             shift_count = 0
             worker_count = 0
+
+            day_texts = {"mon": "Monday", "tue": "Tuesday", "wed": "Wednesday", "thr": "Thursday", "fri": "Friday",
+                        "sat": "Saturday", "sun": "Sunday"}
+            time_texts = {"9": "9:00 - 13:00", "14": "14:00 - 18:00", "18": "18:00 - 22:00"}
+
             for k in shift_list:
                 day, time = k.split("_")
-                sl_str += day_texts[day] + " " + time_texts[time] + "\n"
+                sl_str += f"{day_texts[day]} {time_texts[time]}\n"
+
                 if shift_list[k]["lead"] is None:
                     sl_str += "None\n"
                 else:
+                    lead = shift_list[k]["lead"]
+                    sl_str += f"@{lead} (lead)\n"
                     shift_count += 1
-                    worker_count += len(shift_list[k]["worker"])
-                    sl_str += "@" + shift_list[k]["lead"] + " (lead)\n"
-                    for m in shift_list[k]["worker"]:
-                        sl_str += "@" + m + "\n"
-                sl_str += "\n"
-            print("Number of Shifts:", shift_count)
-            print("Number of Workers:", worker_count)
-            window["-OUTBOX-"].update(sl_str)
 
-    window.close()
+                    workers = shift_list[k]["worker"]
+                    for worker in workers:
+                        sl_str += f"@{worker}\n"
+                        worker_count += 1
 
+                    sl_str += "\n"
+
+            # Mettre à jour la boîte de sortie avec le plan de quart formaté
+            self.output_text.setPlainText(f"Number of Shifts: {shift_count}\nNumber of Workers: {worker_count}\n{sl_str}")
+        except Exception as e:
+            self.output_text.setPlainText(f"an Error has occurred: {str(e)}")
+
+
+
+
+def main():
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())
 
 if __name__ == "__main__":
     main()
