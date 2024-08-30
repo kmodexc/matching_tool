@@ -221,13 +221,11 @@ class MainWindow(QMainWindow):
         
     def generate_shiftplan(self):
         try:
-            # Récupérer les entrées utilisateur
             previous_fname = self.previous_file_input.text().strip()
             previous_sname = self.previous_sheet_input.text().strip()
             current_fname = self.current_file_input.text().strip()
             current_sname = self.current_sheet_input.text().strip()
 
-            # Validation des entrées
             if not current_sname or not os.path.isfile(current_fname):
                 self.output_text.setPlainText("fill valid shiftplan file.")
                 return
@@ -251,7 +249,6 @@ class MainWindow(QMainWindow):
 
             max_shift_size = int(max_shift_size_str)
 
-            # Lecture des feuilles
             prev_df, prev_shift_type_dict = read_sheet(previous_fname, previous_sname)
             prev_shift_list = max_flow_matching(prev_df, prev_shift_type_dict, max_shift_size)
             assigned_names_prev = extract_names_from_shift_list(prev_shift_list)
@@ -273,7 +270,6 @@ class MainWindow(QMainWindow):
                 self.output_text.setPlainText("Algorithm didnt find a shift plan ¯\\_(ツ)_/¯")
                 return
 
-            # Initialisation des variables pour le formatage
             sl_str = ""
             shift_count = 0
             worker_count = 0
@@ -300,7 +296,6 @@ class MainWindow(QMainWindow):
 
                     sl_str += "\n"
 
-            # Mettre à jour la boîte de sortie avec le plan de quart formaté
             self.output_text.setPlainText(f"Number of Shifts: {shift_count}\nNumber of Workers: {worker_count}\n{sl_str}")
         except Exception as e:
             self.output_text.setPlainText(f"an Error has occurred: {str(e)}")
