@@ -17,6 +17,8 @@ LAST_ROW_MECA = 59
 
 
 
+import random
+
 def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
     dataframe = openpyxl.load_workbook(file)
     dataframe1 = dataframe[sheet]
@@ -34,10 +36,10 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
         data["sl_" + st] = []
 
     START_COL_AVAIL_REL = 2
-    START_COL_AVAIL = START_COL_NAMES+START_COL_AVAIL_REL
-    START_COL_SHIFTLEADS_REL = START_COL_AVAIL_REL+(len(SHIFTS)*len(DAYS))
-    START_COL_SHIFTLEADS = START_COL_NAMES+START_COL_SHIFTLEADS_REL
-    LAST_COL = START_COL_SHIFTLEADS+len(SHIFT_TYPES) - 1
+    START_COL_AVAIL = START_COL_NAMES + START_COL_AVAIL_REL
+    START_COL_SHIFTLEADS_REL = START_COL_AVAIL_REL + (len(SHIFTS) * len(DAYS))
+    START_COL_SHIFTLEADS = START_COL_NAMES + START_COL_SHIFTLEADS_REL
+    LAST_COL = START_COL_SHIFTLEADS + len(SHIFT_TYPES) - 1
     LAST_ROW_SHIFT_TYPES = START_ROW_SHIFT_TYPES + len(SHIFT_TYPES) - 1
 
     shift_type_dict = {}
@@ -46,28 +48,28 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
         for i, col in enumerate(dataframe1.iter_cols(START_COL_NAMES, LAST_COL)):
             if i == 0 and row >= START_ROW_AVAIL:
                 name = col[row].value
-                if name != None:
+                if name is not None:
                     data['name'].append(name)
                     if START_ROW_MECA <= row <= LAST_ROW_MECA:
                         data['team'].append('meca')
                     else:
                         data['team'].append('other')
             elif i == 1 and row >= START_ROW_AVAIL:
-                if name != None:
+                if name is not None:
                     n_shifts = col[row].value
                     data['beer'].append(1 if n_shifts is None else 0)
                     if n_shifts is None:
                         n_shifts = 0
                     data['n_shifts'].append(int(n_shifts))
-            elif name != None and i < START_COL_SHIFTLEADS_REL and row >= START_ROW_AVAIL:
+            elif name is not None and i < START_COL_SHIFTLEADS_REL and row >= START_ROW_AVAIL:
                 key = DAYS[(i - START_COL_AVAIL_REL) // len(SHIFTS)] + "_" + SHIFTS[(i - START_COL_AVAIL_REL) % len(SHIFTS)]
-                if col[row].value != None:
+                if col[row].value is not None:
                     data[key].append(1)
                 else:
                     data[key].append(0)
-            elif name != None and row >= START_ROW_AVAIL:
+            elif name is not None and row >= START_ROW_AVAIL:
                 key = "sl_" + SHIFT_TYPES[i - START_COL_SHIFTLEADS_REL]
-                if col[row].value != None and len(str(col[row].value)) > 0:
+                if col[row].value is not None and len(str(col[row].value)) > 0:
                     data[key].append(True)
                 else:
                     data[key].append(False)
@@ -81,14 +83,12 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
 
     df = pd.DataFrame(data)
 
-    # for row in range(1, dataframe["ShiftLeads"].max_row):
-    #     for i, col in enumerate(dataframe["ShiftLeads"].iter_cols(1, 8)):
-    #         if i == 0:
-    #             name = col[row].value
-    #         elif name != None and name != "" and col[row].value != None and len(str(col[row].value)) > 0:
-    #             df.loc[df["name"] == name, "sl_" + SHIFT_TYPES[i - 1]] = True
+    meca_df = df[df['team'] == 'meca'].sample(frac=1).reset_index(drop=True)
+    other_df = df[df['team'] != 'meca'].sample(frac=1).reset_index(drop=True)
+    df_shuffled = pd.concat([meca_df, other_df]).reset_index(drop=True)
 
-    return df, shift_type_dict
+    return df_shuffled, shift_type_dict
+
 
 def get_beer_list(df):
     obj = {}
