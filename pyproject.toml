@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "smart_controler"
+name = "tufast_matching_tool"
 version = "4.4.0"
 dependencies = [
   "networkx",
