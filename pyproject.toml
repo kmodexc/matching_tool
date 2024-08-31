@@ -4,8 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tufast_matching_tool"
-version = "4.4.8"
+version = "4.4.9"
 dependencies = [
+  "matplotlib",
   "networkx",
   "numpy",
   "openpyxl",
