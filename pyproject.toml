@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tufast_matching_tool"
-version = "4.4.3"
+version = "4.4.4"
 dependencies = [
   "networkx",
   "numpy",
