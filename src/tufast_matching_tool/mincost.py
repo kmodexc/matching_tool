@@ -1,7 +1,7 @@
 import numpy as np
 from functools import reduce
 import networkx as nx
-from general import DAYS, SHIFTS, get_shift_index
+from tufast_matching_tool.general import DAYS, SHIFTS, get_shift_index
 
 class MatchingGraph:
 

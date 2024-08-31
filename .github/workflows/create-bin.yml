@@ -1,0 +1,60 @@
+
+name: create-bin-multiplat
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  generate:
+
+    name: Publish ${{ matrix.asset_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset_name: tufast_matching_tool-linux-amd64
+          - os: windows-latest
+            asset_name: tufast_matching_tool-windows-amd64
+          - os: macos-latest
+            asset_name: tufast_matching_tool-macos-amd64
+
+    steps:
+
+    - name: Checkout the repository
+      uses: actions/checkout@master
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python3 -m pip install --upgrade pip pyinstaller
+        python3 -m pip list
+    
+    - name: Install matching_tool
+      run: |
+        python3 -m pip install .
+        python3 -m pip list
+
+    - name: Check that matching_tool is installed
+      run: |
+        python3 -m pip install .
+        python3 -m pip list
+        python3 -c 'from matching_tool._version import __version__; print(__version__)'
+
+    - name: Build binary
+      run: |
+        pyinstaller --onefile --windowed --add-data "tufast_img.ico:." --icon "tufast_img.ico" --name ${{ matrix.asset_name }} src/run.py
+        
+    - name: Upload
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: ${{ matrix.asset_name }}
+        asset_name: ${{ matrix.asset_name }}
+        tag: ${{ github.ref }}
