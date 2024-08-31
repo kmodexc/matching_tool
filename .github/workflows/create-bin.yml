@@ -45,7 +45,7 @@ jobs:
       run: |
         python3 -m pip install .
         python3 -m pip list
-        python3 -c 'from matching_tool._version import __version__; print(__version__)'
+        python3 -c 'from tufast_matching_tool import __version__; print(__version__)'
 
     - name: Build binary
       run: |
