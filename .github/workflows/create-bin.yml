@@ -40,7 +40,9 @@ jobs:
       run: |
         python3 -m pip install --upgrade pip pyinstaller pillow
         python3 -m pip list
-    
+      env:
+        PYINSTALLER_COMPILE_BOOTLOADER: 1 
+
     - name: Install matching_tool
       run: |
         python3 -m pip install .
