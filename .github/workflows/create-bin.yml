@@ -16,13 +16,13 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: tufast_matching_tool-linux-amd64
-            executable_path: "dist/tufast_matching_tool-linux-amd64"
+            executable_path: "dist/tufast_matching_tool*"
           - os: windows-latest
             asset_name: tufast_matching_tool-windows-amd64
-            executable_path: "dist\\tufast_matching_tool-windows-amd64.exe"
+            executable_path: "dist/tufast_matching_tool*"
           - os: macos-latest
             asset_name: tufast_matching_tool-macos
-            executable_path: "dist/tufast_matching_tool-macos"
+            executable_path: "dist/tufast_matching_tool*"
 
     steps:
 
