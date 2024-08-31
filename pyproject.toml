@@ -1,3 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "smart_controler"
+version = "4.4.0"
+dependencies = [
+  "networkx",
+  "numpy",
+  "openpyxl",
+  "pandas",
+  "scipy",
+  "PySide6"
+]
+
+[metadata]
+name = "tufast_matching_tool"
+
 [tool.pytest.ini_options]
 pythonpath = [
   "src"
