@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import maximum_flow
 import networkx as nx
 import matplotlib.pyplot as plt
-from general import DAYS,SHIFTS
+from tufast_matching_tool.general import DAYS,SHIFTS
 
 def shiftplan_to_adj_mat(df):
     n_nodes = 1 + df.shape[0] + (len(SHIFTS) * len(DAYS)) + 1

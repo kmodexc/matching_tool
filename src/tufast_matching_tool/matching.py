@@ -4,9 +4,9 @@ import pandas as pd
 import openpyxl
 from PySide6.QtWidgets import (QApplication, QMainWindow, QFileDialog, QVBoxLayout, QWidget, QPushButton, QLineEdit, QLabel, QCheckBox, QTextEdit, QFormLayout)
 from PySide6.QtCore import Qt
-from general import DAYS, SHIFTS, SHIFT_TYPES
-from maxflow import max_flow_matching
-from mincost import min_cost_matching
+from tufast_matching_tool.general import DAYS, SHIFTS, SHIFT_TYPES
+from tufast_matching_tool.maxflow import max_flow_matching
+from tufast_matching_tool.mincost import min_cost_matching
 
 START_COL_NAMES = 3
 START_ROW_AVAIL = 13
