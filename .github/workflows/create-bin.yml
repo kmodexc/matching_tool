@@ -16,10 +16,13 @@ jobs:
         include:
           - os: ubuntu-latest
             asset_name: tufast_matching_tool-linux-amd64
+            executable_path: "dist/tufast_matching_tool-linux-amd64"
           - os: windows-latest
             asset_name: tufast_matching_tool-windows-amd64
+            executable_path: "dist\\tufast_matching_tool-windows-amd64.exe"
           - os: macos-latest
-            asset_name: tufast_matching_tool-macos-amd64
+            asset_name: tufast_matching_tool-macos
+            executable_path: "dist/tufast_matching_tool-macos"
 
     steps:
 
@@ -54,9 +57,7 @@ jobs:
         pyinstaller --onefile --windowed --add-data "tufast_img.ico:." --icon "tufast_img.ico" --name ${{ matrix.asset_name }} src/run.py
         
     - name: Upload
-      uses: svenstaro/upload-release-action@v2
+      uses: softprops/action-gh-release@v2
       with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ${{ matrix.asset_name }}
-        asset_name: ${{ matrix.asset_name }}
-        tag: ${{ github.ref }}
+        files: |
+          ${{ matrix.executable_path }}
