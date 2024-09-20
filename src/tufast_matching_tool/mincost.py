@@ -63,9 +63,11 @@ class MatchingGraph:
             if is_a_shiftlead_availible == 0:
                 shift_type_dict[s] = []
                 print("remove because no shiftlead",s)
+
+        mon_9_col_ind = df.columns.get_loc("mon_9")
         
         for index, row in df.iterrows():
-            avai = row.to_numpy()[3:3+(len(SHIFTS)*len(DAYS))]
+            avai = row.to_numpy()[mon_9_col_ind:mon_9_col_ind+(len(SHIFTS)*len(DAYS))]
             start_col = node_offsets[1]+(index*len(SHIFTS)*len(DAYS))
             end_col = node_offsets[1]+((index+1)*len(SHIFTS)*len(DAYS))
             graph_matrix[node_offsets[0]+index, start_col:end_col] = avai
