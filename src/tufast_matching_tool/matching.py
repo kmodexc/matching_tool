@@ -44,16 +44,23 @@ def read_sheet(file="Shiftsplan_lux025.xlsx", sheet="ShiftList_KW16"):
 
     shift_type_dict = {}
 
+    end_of_file = False
+
     for row in range(START_ROW_SHIFT_TYPES, dataframe1.max_row):
+        if end_of_file:
+            break
         for i, col in enumerate(dataframe1.iter_cols(START_COL_NAMES, LAST_COL)):
             if i == 0 and row >= START_ROW_AVAIL:
                 name = col[row].value
-                if name is not None:
+                if name is not None and len(name) > 0:
                     data['name'].append(name)
                     if START_ROW_MECA <= row <= LAST_ROW_MECA:
                         data['team'].append('meca')
                     else:
                         data['team'].append('other')
+                else:
+                    end_of_file = True
+                    break
             elif i == 1 and row >= START_ROW_AVAIL:
                 if name is not None:
                     n_shifts = col[row].value
@@ -220,7 +227,7 @@ class MainWindow(QMainWindow):
 
         
     def generate_shiftplan(self):
-        try:
+        # try:
             previous_fname = self.previous_file_input.text().strip()
             previous_sname = self.previous_sheet_input.text().strip()
             current_fname = self.current_file_input.text().strip()
@@ -297,8 +304,8 @@ class MainWindow(QMainWindow):
                     sl_str += "\n"
 
             self.output_text.setPlainText(f"Number of Shifts: {shift_count}\nNumber of Workers: {worker_count}\n{sl_str}")
-        except Exception as e:
-            self.output_text.setPlainText(f"an Error has occurred: {str(e)}")
+        # except Exception as e:
+        #     self.output_text.setPlainText(f"an Error has occurred: {str(e)}")
 
 
 
